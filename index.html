@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="理財損益">
+<meta name="theme-color" content="#0A0F1C">
+<meta name="mobile-web-app-capable" content="yes">
+<title>理財損益追蹤</title>
+<style>
+  :root{
+    --bg:#0A0F1C;
+    --surface:#131A29;
+    --surface-2:#1B2436;
+    --border:#252F45;
+    --border-soft:#1D2637;
+    --gold:#D4A62B;
+    --gold-soft:rgba(212,166,43,0.14);
+    --jade:#3DDC84;
+    --coral:#F0685F;
+    --text:#ECEFF4;
+    --text-muted:#8792A8;
+    --text-faint:#57627A;
+    --c-stock:#4F8FF7;
+    --c-fund:#9B7EDE;
+    --c-cash:#3DDC84;
+    --c-forex:#D4A62B;
+    --serif: ui-serif, Georgia, "Noto Serif TC", "PingFang TC", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang TC", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+  body{
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;justify-content:center;
+    padding-bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+  #app{width:100%;max-width:480px;min-height:100dvh;position:relative;background:
+      radial-gradient(1200px 600px at 50% -10%, #131c30 0%, var(--bg) 55%);}
+
+  header.top{
+    padding: calc(18px + env(safe-area-inset-top)) 20px 14px;
+    position:sticky; top:0; z-index:5;
+    background:linear-gradient(180deg, rgba(10,15,28,0.97), rgba(10,15,28,0.86) 80%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  header.top .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;}
+  header.top h1{font-family:var(--serif);font-weight:600;font-size:21px;margin:4px 0 0;letter-spacing:.01em;}
+
+  main{padding:6px 20px 30px;}
+  .view{display:none;} .view.active{display:block;}
+
+  /* ---- Dashboard ---- */
+  .hero-card{
+    background:linear-gradient(165deg, var(--surface-2), var(--surface));
+    border:1px solid var(--border); border-radius:20px;
+    padding:24px 22px 20px; margin:14px 0 16px;
+    position:relative; overflow:hidden;
+  }
+  .hero-card::before{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(120deg, transparent 40%, var(--gold-soft) 100%);
+    pointer-events:none;
+  }
+  .hero-label{font-size:12px;color:var(--text-muted);letter-spacing:.05em;}
+  .hero-value{font-family:var(--serif);font-size:38px;font-weight:600;margin:6px 0 2px;
+    font-variant-numeric:tabular-nums; letter-spacing:-0.01em;}
+  .hero-sub{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13.5px;}
+  .pill{padding:2px 9px;border-radius:20px;font-size:12.5px;font-family:var(--mono);font-weight:600;}
+  .pill.pos{background:rgba(61,220,132,0.14);color:var(--jade);}
+  .pill.neg{background:rgba(240,104,95,0.14);color:var(--coral);}
+  .pill.zero{background:rgba(135,146,168,0.14);color:var(--text-muted);}
+  .sparkline{margin-top:14px;height:34px;}
+  .sparkline svg{display:block;width:100%;height:100%;}
+
+  .stat-row{display:flex;gap:10px;margin-bottom:16px;}
+  .stat-card{flex:1;background:var(--surface);border:1px solid var(--border-soft);border-radius:14px;padding:13px 14px;}
+  .stat-card .l{font-size:11.5px;color:var(--text-muted);}
+  .stat-card .v{font-family:var(--mono);font-size:16.5px;margin-top:4px;font-variant-numeric:tabular-nums;font-weight:600;}
+
+  .section-title{display:flex;align-items:baseline;justify-content:space-between;margin:22px 0 10px;}
+  .section-title h2{font-family:var(--serif);font-size:16px;font-weight:600;margin:0;}
+  .section-title .n{font-size:12px;color:var(--text-faint);font-family:var(--mono);}
+
+  .card{background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;padding:16px;}
+
+  .donut-wrap{display:flex;align-items:center;gap:18px;}
+  .legend{flex:1;display:flex;flex-direction:column;gap:9px;}
+  .legend-row{display:flex;align-items:center;font-size:13px;gap:8px;}
+  .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .legend-name{color:var(--text-muted);flex:1;}
+  .legend-val{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+
+  .empty{text-align:center;padding:34px 10px;color:var(--text-faint);}
+  .empty .big{font-size:30px;margin-bottom:8px;opacity:.6;}
+  .empty p{font-size:13.5px;line-height:1.7;margin:0;}
+
+  .btn-primary{
+    display:block;width:100%;text-align:center;background:var(--gold);color:#1a1404;
+    font-weight:700;font-size:14.5px;padding:13px;border-radius:13px;border:none;
+    font-family:var(--sans);
+  }
+  .btn-primary:active{opacity:.85;}
+  .btn-ghost{
+    background:transparent;border:1px solid var(--border);color:var(--text);
+    border-radius:13px;padding:12px;font-size:14px;width:100%;font-family:var(--sans);
+  }
+
+  /* ---- Assets view ---- */
+  .cat-tabs{display:flex;gap:8px;overflow-x:auto;padding:12px 0 4px;margin-bottom:4px;}
+  .cat-tab{flex-shrink:0;padding:7px 14px;border-radius:20px;font-size:13px;border:1px solid var(--border);
+    color:var(--text-muted);font-family:var(--sans);}
+  .cat-tab.active{background:var(--gold-soft);border-color:var(--gold);color:var(--gold);font-weight:600;}
+
+  .asset-row{
+    display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--border-soft);
+  }
+  .asset-row:last-child{border-bottom:none;}
+  .cat-chip{width:6px;height:34px;border-radius:4px;flex-shrink:0;}
+  .asset-main{flex:1;min-width:0;}
+  .asset-name{font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .asset-meta{font-size:12px;color:var(--text-faint);font-family:var(--mono);margin-top:2px;}
+  .asset-value{text-align:right;}
+  .asset-value .v{font-family:var(--mono);font-size:14.5px;font-variant-numeric:tabular-nums;font-weight:600;}
+  .asset-value .g{font-family:var(--mono);font-size:11.5px;margin-top:2px;}
+  .asset-edit{margin-left:2px;width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--surface-2);
+    border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);}
+
+  .fab{
+    position:fixed; right:20px; bottom:calc(92px + env(safe-area-inset-bottom));
+    width:54px;height:54px;border-radius:50%;background:var(--gold);color:#1a1404;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(212,166,43,0.35);
+    font-size:26px;font-weight:400;z-index:6; border:none; max-width:480px;
+  }
+
+  /* ---- History view ---- */
+  .snap-row{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--border-soft);}
+  .snap-row:last-child{border-bottom:none;}
+  .snap-date{width:78px;flex-shrink:0;}
+  .snap-date .d1{font-family:var(--mono);font-size:14px;font-weight:600;}
+  .snap-date .d2{font-size:11px;color:var(--text-faint);}
+  .snap-main{flex:1;}
+  .snap-main .v{font-family:var(--mono);font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .snap-main .g{font-family:var(--mono);font-size:11.5px;margin-top:2px;}
+
+  /* ---- Bottom Nav ---- */
+  nav.bottom{
+    position:fixed;bottom:0;left:0;right:0;z-index:8;
+    display:flex;justify-content:center;
+  }
+  nav.bottom .inner{
+    width:100%;max-width:480px;display:flex;
+    background:rgba(19,26,41,0.92); backdrop-filter:blur(14px);
+    border-top:1px solid var(--border-soft);
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+  .navbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-faint);
+    font-size:10.5px;font-family:var(--sans);background:none;border:none;padding:6px 0;}
+  .navbtn.active{color:var(--gold);}
+  .navbtn svg{width:22px;height:22px;}
+
+  /* ---- Modal ---- */
+  .overlay{position:fixed;inset:0;background:rgba(5,8,15,0.6);backdrop-filter:blur(3px);
+    display:flex;align-items:flex-end;justify-content:center;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .overlay.show{opacity:1;pointer-events:auto;}
+  .sheet{width:100%;max-width:480px;background:var(--surface-2);border-radius:22px 22px 0 0;
+    padding:20px 20px calc(22px + env(safe-area-inset-bottom));
+    transform:translateY(16px);transition:transform .22s;
+    border-top:1px solid var(--border); max-height:86dvh; overflow-y:auto;}
+  .overlay.show .sheet{transform:translateY(0);}
+  .sheet-title{font-family:var(--serif);font-size:18px;font-weight:600;margin:0 0 16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;color:var(--text-muted);margin-bottom:6px;}
+  .field input, .field select{
+    width:100%;background:var(--surface);border:1px solid var(--border);border-radius:11px;
+    padding:12px 13px;color:var(--text);font-size:15px;font-family:var(--sans);
+  }
+  .field input[type=number]{font-family:var(--mono);}
+  .catpick{display:flex;gap:8px;}
+  .catpick button{flex:1;padding:10px 4px;border-radius:11px;border:1px solid var(--border);
+    background:var(--surface);color:var(--text-muted);font-size:12.5px;font-family:var(--sans);}
+  .catpick button.active{border-color:var(--gold);color:var(--gold);background:var(--gold-soft);font-weight:600;}
+  .sheet-actions{display:flex;gap:10px;margin-top:6px;}
+  .sheet-actions .btn-primary{flex:2;}
+  .sheet-actions .btn-danger{flex:1;background:transparent;border:1px solid var(--coral);color:var(--coral);
+    border-radius:13px;font-size:14px;font-family:var(--sans);}
+  .hint{font-size:11.5px;color:var(--text-faint);line-height:1.6;margin:-6px 0 14px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <div class="eyebrow">Portfolio Ledger</div>
+    <h1 id="pageTitle">總覽</h1>
+  </header>
+
+  <main>
+    <!-- ===== DASHBOARD ===== -->
+    <section class="view active" id="view-dashboard">
+      <div class="hero-card">
+        <div class="hero-label">總資產淨值</div>
+        <div class="hero-value" id="heroTotal">NT$0</div>
+        <div class="hero-sub">
+          <span class="pill zero" id="heroGainPill">±0</span>
+          <span style="color:var(--text-faint)" id="heroAsOf">尚無資料</span>
+        </div>
+        <div class="sparkline" id="sparkline"></div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="l">投入成本</div>
+          <div class="v" id="statCost">NT$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="l">損益金額</div>
+          <div class="v" id="statGain">NT$0</div>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>資產配置</h2></div>
+      <div class="card" id="allocCard"></div>
+
+      <div class="section-title"><h2>淨值趨勢</h2><span class="n" id="trendCount"></span></div>
+      <div class="card" id="trendCard"></div>
+
+      <div style="margin-top:20px;">
+        <button class="btn-primary" id="btnSnapshot">＋ 建立今日快照</button>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn-ghost" id="btnResetDemo" style="color:var(--text-faint);font-size:12.5px;">清除示範資料，重新開始記錄</button>
+      </div>
+    </section>
+
+    <!-- ===== ASSETS ===== -->
+    <section class="view" id="view-assets">
+      <div class="cat-tabs" id="catTabs"></div>
+      <div class="card" id="assetList" style="padding:4px 12px;"></div>
+    </section>
+
+    <!-- ===== HISTORY ===== -->
+    <section class="view" id="view-history">
+      <div class="card" id="historyList"></div>
+    </section>
+  </main>
+
+  <button class="fab" id="fabAdd">＋</button>
+
+  <nav class="bottom">
+    <div class="inner">
+      <button class="navbtn active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V10L12 4l8 6v9" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 19v-6h6v6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        總覽
+      </button>
+      <button class="navbtn" data-view="assets">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5" stroke-linecap="round"/></svg>
+        資產
+      </button>
+      <button class="navbtn" data-view="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        歷史
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ===== Asset Modal ===== -->
+<div class="overlay" id="assetOverlay">
+  <div class="sheet">
+    <div class="sheet-title" id="assetSheetTitle">新增資產</div>
+    <div class="field">
+      <label>資產類型</label>
+      <div class="catpick" id="catPick">
+        <button data-cat="stock">股票</button>
+        <button data-cat="fund">基金</button>
+        <button data-cat="cash">現金</button>
+        <button data-cat="forex">外幣</button>
+      </div>
+    </div>
+    <div class="field">
+      <label id="nameLabel">名稱</label>
+      <input type="text" id="assetName" placeholder="例如：台積電 / 國泰台幣活存">
+    </div>
+    <div class="field" id="costField">
+      <label>投入成本 (NT$)</label>
+      <input type="number" id="assetCost" inputmode="decimal" placeholder="0">
+    </div>
+    <div class="field">
+      <label id="valueLabel">目前現值 (NT$)</label>
+      <input type="number" id="assetValue" inputmode="decimal" placeholder="0">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-danger" id="btnDeleteAsset" style="display:none;">刪除</button>
+      <button class="btn-primary" id="btnSaveAsset">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Snapshot Modal ===== -->
+<div class="overlay" id="snapOverlay">
+  <div class="sheet">
+    <div class="sheet-title">建立資產快照</div>
+    <p class="hint">快照會依「資產」頁籤目前所有項目的現值，記錄一個時間點，用來繪製淨值趨勢圖。請先確認資產現值已更新。</p>
+    <div class="field">
+      <label>快照日期</label>
+      <input type="date" id="snapDate">
+    </div>
+    <div class="field">
+      <label>本次總資產淨值預覽</label>
+      <input type="text" id="snapPreview" disabled style="opacity:.8;">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" id="btnCancelSnap" style="flex:1;">取消</button>
+      <button class="btn-primary" id="btnConfirmSnap" style="flex:2;">確認建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Snapshot Detail Modal ===== -->
+<div class="overlay" id="snapDetailOverlay">
+  <div class="sheet">
+    <div class="sheet-title" id="snapDetailTitle">快照明細</div>
+    <div id="snapDetailBody"></div>
+    <div class="sheet-actions">
+      <button class="btn-danger" id="btnDeleteSnap">刪除此快照</button>
+      <button class="btn-ghost" id="btnCloseSnapDetail" style="flex:2;">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CATS = {
+    stock: {label:'股票', color:'var(--c-stock)', hex:'#4F8FF7', hasCost:true},
+    fund:  {label:'基金', color:'var(--c-fund)',  hex:'#9B7EDE', hasCost:true},
+    cash:  {label:'現金', color:'var(--c-cash)',  hex:'#3DDC84', hasCost:false},
+    forex: {label:'外幣', color:'var(--c-forex)', hex:'#D4A62B', hasCost:false}
+  };
+  var CAT_ORDER = ['stock','fund','cash','forex'];
+  var STORE_KEY = 'wealthLedgerData_v1';
+
+  var state = loadState();
+  var currentView = 'dashboard';
+  var currentCatFilter = 'all';
+  var editingAssetId = null;
+  var editingCat = 'stock';
+  var detailSnapId = null;
+
+  function buildDemoState(){
+    var rows = [
+      {date:'2026-02-11', fc:2633916, fv:4291630, sc:3281406, sv:3825382, cash:352861, forex:60000},
+      {date:'2026-04-17', fc:2231220, fv:4728084, sc:4131734, sv:4863580, cash:650000, forex:70524},
+      {date:'2026-04-30', fc:2321220, fv:5152432, sc:4097998, sv:4973906, cash:455000, forex:99950},
+      {date:'2026-05-07', fc:2351220, fv:5505643, sc:4064417, sv:5377538, cash:396000, forex:99500}
+    ];
+    var snapshots = rows.map(function(r){
+      var assetsAtSnapshot = [
+        {id:'demo-fund', category:'fund', name:'基金', cost:r.fc, value:r.fv},
+        {id:'demo-stock', category:'stock', name:'股票', cost:r.sc, value:r.sv},
+        {id:'demo-cash', category:'cash', name:'銀行台幣', value:r.cash},
+        {id:'demo-forex', category:'forex', name:'銀行外幣', value:r.forex}
+      ];
+      var totalCost = r.fc + r.sc + r.cash + r.forex;
+      var totalValue = r.fv + r.sv + r.cash + r.forex;
+      return {id:'demo-snap-'+r.date, date:r.date, totalCost:totalCost, totalValue:totalValue, assetsAtSnapshot:assetsAtSnapshot};
+    });
+    var last = rows[rows.length-1];
+    var assets = [
+      {id:'demo-fund', category:'fund', name:'基金', cost:last.fc, value:last.fv},
+      {id:'demo-stock', category:'stock', name:'股票', cost:last.sc, value:last.sv},
+      {id:'demo-cash', category:'cash', name:'銀行台幣', value:last.cash},
+      {id:'demo-forex', category:'forex', name:'銀行外幣', value:last.forex}
+    ];
+    return { assets: assets, snapshots: snapshots };
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(raw){ return JSON.parse(raw); }
+    }catch(e){}
+    // 公開部署版本：首次開啟為空白狀態，資料僅儲存於使用者本機瀏覽器
+    return { assets: [], snapshots: [] };
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+  function fmtMoney(n){
+    n = Math.round(n||0);
+    var sign = n<0 ? '-' : '';
+    return 'NT$' + sign + Math.abs(n).toLocaleString('zh-TW');
+  }
+  function fmtSigned(n){
+    n = Math.round(n||0);
+    if(n>0) return '+' + n.toLocaleString('zh-TW');
+    if(n<0) return '-' + Math.abs(n).toLocaleString('zh-TW');
+    return '±0';
+  }
+  function fmtDate(iso){
+    var d = new Date(iso+'T00:00:00');
+    var days=['日','一','二','三','四','五','六'];
+    return { d1: iso.slice(2).replace(/-/g,'/'), d2: '週'+days[d.getDay()] };
+  }
+
+  // ---------- computations ----------
+  function assetGain(a){
+    if(!CATS[a.category].hasCost) return 0;
+    return (a.value||0) - (a.cost||0);
+  }
+  function grandTotals(assets){
+    var cost=0, value=0;
+    assets.forEach(function(a){
+      value += (a.value||0);
+      cost += CATS[a.category].hasCost ? (a.cost||0) : (a.value||0);
+    });
+    var gain = value - cost;
+    var pct = cost>0 ? (gain/cost*100) : 0;
+    return {cost:cost, value:value, gain:gain, pct:pct};
+  }
+  function categoryTotals(assets){
+    var out = {};
+    CAT_ORDER.forEach(function(c){ out[c] = {cost:0,value:0}; });
+    assets.forEach(function(a){
+      out[a.category].value += (a.value||0);
+      out[a.category].cost += CATS[a.category].hasCost ? (a.cost||0) : (a.value||0);
+    });
+    return out;
+  }
+
+  // ---------- rendering: dashboard ----------
+  function renderDashboard(){
+    var t = grandTotals(state.assets);
+    document.getElementById('heroTotal').textContent = fmtMoney(t.value);
+    var pill = document.getElementById('heroGainPill');
+    pill.className = 'pill ' + (t.gain>0?'pos':t.gain<0?'neg':'zero');
+    pill.textContent = fmtSigned(t.gain) + '  (' + (t.gain>=0?'+':'') + t.pct.toFixed(1) + '%)';
+
+    var snaps = state.snapshots.slice().sort(function(a,b){return a.date<b.date?-1:1;});
+    document.getElementById('heroAsOf').textContent = snaps.length
+      ? '最近快照 ' + snaps[snaps.length-1].date
+      : '尚無快照紀錄';
+
+    document.getElementById('statCost').textContent = fmtMoney(t.cost);
+    var statGain = document.getElementById('statGain');
+    statGain.textContent = fmtSigned(t.gain);
+    statGain.style.color = t.gain>0?'var(--jade)':t.gain<0?'var(--coral)':'var(--text)';
+
+    document.getElementById('sparkline').innerHTML = buildSparkline(snaps);
+    document.getElementById('allocCard').innerHTML = buildAllocation(state.assets, t);
+    document.getElementById('trendCard').innerHTML = buildTrendChart(snaps);
+    document.getElementById('trendCount').textContent = snaps.length ? snaps.length+' 筆快照' : '';
+  }
+
+  function buildSparkline(snaps){
+    if(snaps.length < 2) return '';
+    var vals = snaps.map(function(s){return s.totalValue;});
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    var range = (max-min) || 1;
+    var w=300, h=34, pad=3;
+    var pts = vals.map(function(v,i){
+      var x = pad + (i/(vals.length-1))*(w-pad*2);
+      var y = h - pad - ((v-min)/range)*(h-pad*2);
+      return x.toFixed(1)+','+y.toFixed(1);
+    }).join(' ');
+    return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
+      '<polyline points="'+pts+'" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'+
+      '</svg>';
+  }
+
+  function buildAllocation(assets, totals){
+    if(!assets.length){
+      return '<div class="empty"><div class="big">◎</div><p>尚未新增任何資產<br>點擊右下角「＋」開始記錄</p></div>';
+    }
+    var ct = categoryTotals(assets);
+    var total = totals.value || 1;
+    var cx=60, cy=60, r=48, sw=16;
+    var circumference = 2*Math.PI*r;
+    var offset = 0;
+    var segs = '';
+    CAT_ORDER.forEach(function(c){
+      var v = ct[c].value;
+      if(v<=0) return;
+      var frac = v/total;
+      var len = frac*circumference;
+      segs += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+CATS[c].hex+'" stroke-width="'+sw+'" '+
+        'stroke-dasharray="'+len.toFixed(1)+' '+(circumference-len).toFixed(1)+'" '+
+        'stroke-dashoffset="'+(-offset).toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
+      offset += len;
+    });
+    var donut = '<svg width="120" height="120" viewBox="0 0 120 120">'+segs+'</svg>';
+    var legend = '<div class="legend">';
+    CAT_ORDER.forEach(function(c){
+      var v = ct[c].value;
+      if(v<=0) return;
+      legend += '<div class="legend-row"><span class="legend-dot" style="background:'+CATS[c].hex+'"></span>'+
+        '<span class="legend-name">'+CATS[c].label+'</span>'+
+        '<span class="legend-val">'+((v/total)*100).toFixed(0)+'% · '+fmtMoney(v)+'</span></div>';
+    });
+    legend += '</div>';
+    return '<div class="donut-wrap">'+donut+legend+'</div>';
+  }
+
+  function buildTrendChart(snaps){
+    if(snaps.length < 2){
+      return '<div class="empty"><div class="big">〜</div><p>至少需要 2 筆快照<br>才能繪製淨值趨勢圖</p></div>';
+    }
+    var w=320, h=140, padL=6, padR=6, padT=14, padB=22;
+    var vals = snaps.map(function(s){return s.totalValue;});
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    if(min===max){ min -= 1; max += 1; }
+    var range = max-min;
+    var innerW = w-padL-padR, innerH = h-padT-padB;
+    var pts = snaps.map(function(s,i){
+      var x = padL + (i/(snaps.length-1))*innerW;
+      var y = padT + innerH - ((s.totalValue-min)/range)*innerH;
+      return {x:x, y:y};
+    });
+    var line = pts.map(function(p,i){ return (i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
+    var area = line + ' L'+pts[pts.length-1].x.toFixed(1)+','+(padT+innerH)+' L'+pts[0].x.toFixed(1)+','+(padT+innerH)+' Z';
+    var firstLabel = snaps[0].date.slice(2), lastLabel = snaps[snaps.length-1].date.slice(2);
+    return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="150">'+
+      '<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0%" stop-color="#D4A62B" stop-opacity="0.35"/>'+
+      '<stop offset="100%" stop-color="#D4A62B" stop-opacity="0"/></linearGradient></defs>'+
+      '<path d="'+area+'" fill="url(#tg)"/>'+
+      '<path d="'+line+'" fill="none" stroke="#D4A62B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'+
+      pts.map(function(p,i){ return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(i===pts.length-1?3.6:2.4)+'" fill="#0A0F1C" stroke="#D4A62B" stroke-width="2"/>'; }).join('')+
+      '<text x="'+padL+'" y="'+(h-4)+'" font-size="10" fill="#57627A" font-family="ui-monospace,monospace">'+firstLabel+'</text>'+
+      '<text x="'+(w-padR)+'" y="'+(h-4)+'" font-size="10" fill="#57627A" font-family="ui-monospace,monospace" text-anchor="end">'+lastLabel+'</text>'+
+      '</svg>';
+  }
+
+  // ---------- rendering: assets ----------
+  function renderCatTabs(){
+    var wrap = document.getElementById('catTabs');
+    var tabs = [{key:'all', label:'全部'}].concat(CAT_ORDER.map(function(c){return {key:c, label:CATS[c].label};}));
+    wrap.innerHTML = tabs.map(function(t){
+      return '<button class="cat-tab'+(currentCatFilter===t.key?' active':'')+'" data-cat="'+t.key+'">'+t.label+'</button>';
+    }).join('');
+  }
+
+  function renderAssetList(){
+    var list = state.assets.filter(function(a){ return currentCatFilter==='all' || a.category===currentCatFilter; });
+    var container = document.getElementById('assetList');
+    if(!list.length){
+      container.innerHTML = '<div class="empty"><div class="big">◎</div><p>此分類尚無資產<br>點擊右下角「＋」新增</p></div>';
+      return;
+    }
+    container.innerHTML = list.map(function(a){
+      var cat = CATS[a.category];
+      var gain = assetGain(a);
+      var gainStr = cat.hasCost ? fmtSigned(gain) : '—';
+      var gainColor = gain>0?'var(--jade)':gain<0?'var(--coral)':'var(--text-faint)';
+      var meta = cat.hasCost ? ('成本 '+fmtMoney(a.cost)) : cat.label;
+      return '<div class="asset-row" data-id="'+a.id+'">'+
+        '<div class="cat-chip" style="background:'+cat.hex+'"></div>'+
+        '<div class="asset-main"><div class="asset-name">'+escapeHtml(a.name)+'</div><div class="asset-meta">'+meta+'</div></div>'+
+        '<div class="asset-value"><div class="v">'+fmtMoney(a.value)+'</div><div class="g" style="color:'+gainColor+'">'+gainStr+'</div></div>'+
+        '<button class="asset-edit" data-edit="'+a.id+'">'+
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'+
+        '</button></div>';
+    }).join('');
+  }
+
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // ---------- rendering: history ----------
+  function renderHistory(){
+    var snaps = state.snapshots.slice().sort(function(a,b){return a.date<b.date?1:-1;});
+    var container = document.getElementById('historyList');
+    if(!snaps.length){
+      container.innerHTML = '<div class="empty"><div class="big">〜</div><p>尚無快照紀錄<br>回到「總覽」建立第一筆快照</p></div>';
+      return;
+    }
+    container.innerHTML = snaps.map(function(s){
+      var dt = fmtDate(s.date);
+      var gain = s.totalValue - s.totalCost;
+      var gainColor = gain>0?'var(--jade)':gain<0?'var(--coral)':'var(--text-faint)';
+      return '<div class="snap-row" data-snap="'+s.id+'">'+
+        '<div class="snap-date"><div class="d1">'+dt.d1+'</div><div class="d2">'+dt.d2+'</div></div>'+
+        '<div class="snap-main"><div class="v">'+fmtMoney(s.totalValue)+'</div><div class="g" style="color:'+gainColor+'">'+fmtSigned(gain)+'</div></div>'+
+        '</div>';
+    }).join('');
+  }
+
+  function renderSnapDetail(id){
+    var s = state.snapshots.find(function(x){return x.id===id;});
+    if(!s) return;
+    detailSnapId = id;
+    document.getElementById('snapDetailTitle').textContent = s.date + ' 快照明細';
+    var ct = {};
+    CAT_ORDER.forEach(function(c){ ct[c] = {cost:0,value:0}; });
+    (s.assetsAtSnapshot||[]).forEach(function(a){
+      ct[a.category].value += a.value;
+      ct[a.category].cost += CATS[a.category].hasCost ? a.cost : a.value;
+    });
+    var gain = s.totalValue - s.totalCost;
+    var html = '<div style="margin-bottom:14px;">'+
+      '<div class="hint" style="margin:0 0 4px;">總資產淨值</div>'+
+      '<div style="font-family:var(--mono);font-size:22px;font-weight:600;">'+fmtMoney(s.totalValue)+'</div>'+
+      '<div style="font-family:var(--mono);font-size:13px;color:'+(gain>0?'var(--jade)':gain<0?'var(--coral)':'var(--text-faint)')+';margin-top:2px;">'+fmtSigned(gain)+'</div></div>';
+    html += '<div style="border-top:1px solid var(--border-soft);padding-top:10px;">';
+    CAT_ORDER.forEach(function(c){
+      if(ct[c].value<=0) return;
+      html += '<div class="legend-row" style="margin-bottom:8px;"><span class="legend-dot" style="background:'+CATS[c].hex+'"></span>'+
+        '<span class="legend-name">'+CATS[c].label+'</span><span class="legend-val">'+fmtMoney(ct[c].value)+'</span></div>';
+    });
+    html += '</div>';
+    document.getElementById('snapDetailBody').innerHTML = html;
+    document.getElementById('snapDetailOverlay').classList.add('show');
+  }
+
+  // ---------- view switching ----------
+  var TITLES = {dashboard:'總覽', assets:'資產', history:'歷史紀錄'};
+  function switchView(v){
+    currentView = v;
+    document.querySelectorAll('.view').forEach(function(el){ el.classList.remove('active'); });
+    document.getElementById('view-'+v).classList.add('active');
+    document.querySelectorAll('.navbtn').forEach(function(b){ b.classList.toggle('active', b.dataset.view===v); });
+    document.getElementById('pageTitle').textContent = TITLES[v];
+    document.getElementById('fabAdd').style.display = (v==='history') ? 'none' : 'flex';
+    renderAll();
+  }
+  function renderAll(){
+    if(currentView==='dashboard') renderDashboard();
+    if(currentView==='assets'){ renderCatTabs(); renderAssetList(); }
+    if(currentView==='history') renderHistory();
+  }
+
+  // ---------- asset modal ----------
+  function openAssetModal(assetId){
+    editingAssetId = assetId || null;
+    var a = assetId ? state.assets.find(function(x){return x.id===assetId;}) : null;
+    editingCat = a ? a.category : (currentCatFilter!=='all' ? currentCatFilter : 'stock');
+    document.getElementById('assetSheetTitle').textContent = a ? '編輯資產' : '新增資產';
+    document.getElementById('assetName').value = a ? a.name : '';
+    document.getElementById('assetCost').value = a && a.cost!=null ? a.cost : '';
+    document.getElementById('assetValue').value = a ? a.value : '';
+    document.getElementById('btnDeleteAsset').style.display = a ? 'block' : 'none';
+    updateCatPickUI();
+    updateCostFieldVisibility();
+    document.getElementById('assetOverlay').classList.add('show');
+  }
+  function closeAssetModal(){ document.getElementById('assetOverlay').classList.remove('show'); }
+
+  function updateCatPickUI(){
+    document.querySelectorAll('#catPick button').forEach(function(b){
+      b.classList.toggle('active', b.dataset.cat===editingCat);
+    });
+  }
+  function updateCostFieldVisibility(){
+    var hasCost = CATS[editingCat].hasCost;
+    document.getElementById('costField').style.display = hasCost ? 'block' : 'none';
+    document.getElementById('nameLabel').textContent = editingCat==='cash' ? '帳戶名稱' : editingCat==='forex' ? '幣別／帳戶名稱' : '名稱';
+    document.getElementById('valueLabel').textContent = hasCost ? '目前現值 (NT$)' : '目前台幣現值 (NT$)';
+  }
+
+  document.getElementById('catPick').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-cat]');
+    if(!btn) return;
+    editingCat = btn.dataset.cat;
+    updateCatPickUI();
+    updateCostFieldVisibility();
+  });
+
+  document.getElementById('btnSaveAsset').addEventListener('click', function(){
+    var name = document.getElementById('assetName').value.trim();
+    var cost = parseFloat(document.getElementById('assetCost').value) || 0;
+    var value = parseFloat(document.getElementById('assetValue').value) || 0;
+    if(!name){ document.getElementById('assetName').focus(); return; }
+    if(editingAssetId){
+      var a = state.assets.find(function(x){return x.id===editingAssetId;});
+      a.category = editingCat; a.name = name; a.value = value;
+      if(CATS[editingCat].hasCost) a.cost = cost;
+      else delete a.cost;
+    } else {
+      var obj = { id: uid(), category: editingCat, name: name, value: value };
+      if(CATS[editingCat].hasCost) obj.cost = cost;
+      state.assets.push(obj);
+    }
+    saveState();
+    closeAssetModal();
+    renderAll();
+  });
+
+  document.getElementById('btnDeleteAsset').addEventListener('click', function(){
+    if(!editingAssetId) return;
+    if(!confirm('確定要刪除這筆資產嗎？')) return;
+    state.assets = state.assets.filter(function(x){return x.id!==editingAssetId;});
+    saveState();
+    closeAssetModal();
+    renderAll();
+  });
+
+  document.getElementById('assetOverlay').addEventListener('click', function(e){
+    if(e.target === this) closeAssetModal();
+  });
+
+  // ---------- snapshot modal ----------
+  function openSnapModal(){
+    if(!state.assets.length){
+      alert('請先到「資產」頁籤新增至少一筆資產，再建立快照。');
+      return;
+    }
+    var today = new Date();
+    var iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    document.getElementById('snapDate').value = iso;
+    updateSnapPreview();
+    document.getElementById('snapOverlay').classList.add('show');
+  }
+  function updateSnapPreview(){
+    var t = grandTotals(state.assets);
+    document.getElementById('snapPreview').value = fmtMoney(t.value) + '　（' + fmtSigned(t.gain) + '）';
+  }
+  document.getElementById('btnSnapshot').addEventListener('click', openSnapModal);
+  document.getElementById('btnCancelSnap').addEventListener('click', function(){
+    document.getElementById('snapOverlay').classList.remove('show');
+  });
+  document.getElementById('snapOverlay').addEventListener('click', function(e){
+    if(e.target === this) this.classList.remove('show');
+  });
+  document.getElementById('btnConfirmSnap').addEventListener('click', function(){
+    var date = document.getElementById('snapDate').value;
+    if(!date){ return; }
+    var t = grandTotals(state.assets);
+    var snap = {
+      id: uid(),
+      date: date,
+      totalCost: t.cost,
+      totalValue: t.value,
+      assetsAtSnapshot: JSON.parse(JSON.stringify(state.assets))
+    };
+    // replace existing snapshot on same date if present
+    state.snapshots = state.snapshots.filter(function(s){return s.date!==date;});
+    state.snapshots.push(snap);
+    saveState();
+    document.getElementById('snapOverlay').classList.remove('show');
+    switchView('dashboard');
+  });
+
+  // ---------- snapshot detail ----------
+  document.getElementById('historyList').addEventListener('click', function(e){
+    var row = e.target.closest('.snap-row');
+    if(!row) return;
+    renderSnapDetail(row.dataset.snap);
+  });
+  document.getElementById('btnCloseSnapDetail').addEventListener('click', function(){
+    document.getElementById('snapDetailOverlay').classList.remove('show');
+  });
+  document.getElementById('snapDetailOverlay').addEventListener('click', function(e){
+    if(e.target === this) this.classList.remove('show');
+  });
+  document.getElementById('btnDeleteSnap').addEventListener('click', function(){
+    if(!detailSnapId) return;
+    if(!confirm('確定要刪除此快照嗎？此動作無法復原。')) return;
+    state.snapshots = state.snapshots.filter(function(x){return x.id!==detailSnapId;});
+    saveState();
+    document.getElementById('snapDetailOverlay').classList.remove('show');
+    renderAll();
+  });
+
+  // ---------- asset list interactions ----------
+  document.getElementById('assetList').addEventListener('click', function(e){
+    var editBtn = e.target.closest('[data-edit]');
+    if(editBtn){ openAssetModal(editBtn.dataset.edit); return; }
+    var row = e.target.closest('.asset-row');
+    if(row){ openAssetModal(row.dataset.id); }
+  });
+
+  document.getElementById('catTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.cat-tab');
+    if(!btn) return;
+    currentCatFilter = btn.dataset.cat;
+    renderCatTabs();
+    renderAssetList();
+  });
+
+  // ---------- nav & fab ----------
+  document.querySelectorAll('.navbtn').forEach(function(b){
+    b.addEventListener('click', function(){ switchView(b.dataset.view); });
+  });
+  document.getElementById('fabAdd').addEventListener('click', function(){
+    if(currentView==='assets') openAssetModal(null);
+    else { switchView('assets'); setTimeout(function(){ openAssetModal(null); }, 60); }
+  });
+
+  // ---------- dynamic app icon ----------
+  function generateIcon(){
+    try{
+      var canvas = document.createElement('canvas');
+      canvas.width = 180; canvas.height = 180;
+      var ctx = canvas.getContext('2d');
+      var grad = ctx.createLinearGradient(0,0,180,180);
+      grad.addColorStop(0,'#131A29'); grad.addColorStop(1,'#0A0F1C');
+      ctx.fillStyle = grad; ctx.fillRect(0,0,180,180);
+      ctx.strokeStyle = '#D4A62B'; ctx.lineWidth = 11; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath();
+      ctx.moveTo(38,132); ctx.lineTo(74,96); ctx.lineTo(98,116); ctx.lineTo(142,56);
+      ctx.stroke();
+      ctx.fillStyle = '#D4A62B';
+      ctx.beginPath(); ctx.arc(142,56,11,0,Math.PI*2); ctx.fill();
+      var url = canvas.toDataURL('image/png');
+      ['apple-touch-icon','icon'].forEach(function(rel){
+        var link = document.createElement('link');
+        link.rel = rel; link.href = url;
+        document.head.appendChild(link);
+      });
+    }catch(e){}
+  }
+
+  document.getElementById('btnResetDemo').addEventListener('click', function(){
+    if(!confirm('確定要清除示範資料嗎？將會清空所有資產與快照，改為空白狀態，讓您輸入自己的真實資料。')) return;
+    state = { assets: [], snapshots: [] };
+    saveState();
+    renderAll();
+  });
+
+  // ---------- init ----------
+  generateIcon();
+  renderAll();
+})();
+</script>
+</body>
+</html>
