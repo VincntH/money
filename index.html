@@ -23,10 +23,6 @@
     --text:#ECEFF4;
     --text-muted:#8792A8;
     --text-faint:#57627A;
-    --c-stock:#4F8FF7;
-    --c-fund:#9B7EDE;
-    --c-cash:#3DDC84;
-    --c-forex:#D4A62B;
     --serif: ui-serif, Georgia, "Noto Serif TC", "PingFang TC", serif;
     --sans: -apple-system, BlinkMacSystemFont, "PingFang TC", "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
@@ -92,8 +88,8 @@
   .legend{flex:1;display:flex;flex-direction:column;gap:9px;}
   .legend-row{display:flex;align-items:center;font-size:13px;gap:8px;}
   .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
-  .legend-name{color:var(--text-muted);flex:1;}
-  .legend-val{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  .legend-name{color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .legend-val{font-family:var(--mono);font-variant-numeric:tabular-nums;flex-shrink:0;}
 
   .empty{text-align:center;padding:34px 10px;color:var(--text-faint);}
   .empty .big{font-size:30px;margin-bottom:8px;opacity:.6;}
@@ -111,10 +107,13 @@
   }
 
   /* ---- Assets view ---- */
-  .cat-tabs{display:flex;gap:8px;overflow-x:auto;padding:12px 0 4px;margin-bottom:4px;}
+  .cat-tabs-row{display:flex;align-items:center;gap:8px;padding:12px 0 4px;}
+  .cat-tabs{display:flex;gap:8px;overflow-x:auto;flex:1;}
   .cat-tab{flex-shrink:0;padding:7px 14px;border-radius:20px;font-size:13px;border:1px solid var(--border);
-    color:var(--text-muted);font-family:var(--sans);}
+    color:var(--text-muted);font-family:var(--sans);background:transparent;}
   .cat-tab.active{background:var(--gold-soft);border-color:var(--gold);color:var(--gold);font-weight:600;}
+  .icon-btn{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--surface);
+    border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text-muted);}
 
   .asset-row{
     display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--border-soft);
@@ -167,6 +166,7 @@
   .overlay{position:fixed;inset:0;background:rgba(5,8,15,0.6);backdrop-filter:blur(3px);
     display:flex;align-items:flex-end;justify-content:center;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s;}
   .overlay.show{opacity:1;pointer-events:auto;}
+  .overlay.top{z-index:25;}
   .sheet{width:100%;max-width:480px;background:var(--surface-2);border-radius:22px 22px 0 0;
     padding:20px 20px calc(22px + env(safe-area-inset-bottom));
     transform:translateY(16px);transition:transform .22s;
@@ -180,15 +180,18 @@
     padding:12px 13px;color:var(--text);font-size:15px;font-family:var(--sans);
   }
   .field input[type=number]{font-family:var(--mono);}
-  .catpick{display:flex;gap:8px;}
-  .catpick button{flex:1;padding:10px 4px;border-radius:11px;border:1px solid var(--border);
+  .catpick{display:flex;gap:8px;flex-wrap:wrap;}
+  .catpick button{padding:9px 13px;border-radius:11px;border:1px solid var(--border);
     background:var(--surface);color:var(--text-muted);font-size:12.5px;font-family:var(--sans);}
   .catpick button.active{border-color:var(--gold);color:var(--gold);background:var(--gold-soft);font-weight:600;}
+  .catpick button.addnew{color:var(--gold);border-style:dashed;}
   .sheet-actions{display:flex;gap:10px;margin-top:6px;}
   .sheet-actions .btn-primary{flex:2;}
   .sheet-actions .btn-danger{flex:1;background:transparent;border:1px solid var(--coral);color:var(--coral);
     border-radius:13px;font-size:14px;font-family:var(--sans);}
   .hint{font-size:11.5px;color:var(--text-faint);line-height:1.6;margin:-6px 0 14px;}
+  .swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;flex-shrink:0;}
+  .swatch.active{border-color:#fff;}
 </style>
 </head>
 <body>
@@ -227,19 +230,22 @@
       <div class="card" id="allocCard"></div>
 
       <div class="section-title"><h2>淨值趨勢</h2><span class="n" id="trendCount"></span></div>
+      <div class="cat-tabs" id="trendCatTabs" style="margin-bottom:10px;"></div>
       <div class="card" id="trendCard"></div>
 
       <div style="margin-top:20px;">
         <button class="btn-primary" id="btnSnapshot">＋ 建立今日快照</button>
       </div>
-      <div style="margin-top:10px;">
-        <button class="btn-ghost" id="btnResetDemo" style="color:var(--text-faint);font-size:12.5px;">清除示範資料，重新開始記錄</button>
-      </div>
     </section>
 
     <!-- ===== ASSETS ===== -->
     <section class="view" id="view-assets">
-      <div class="cat-tabs" id="catTabs"></div>
+      <div class="cat-tabs-row">
+        <div class="cat-tabs" id="catTabs"></div>
+        <button class="icon-btn" id="btnManageCats" title="管理類別">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009.09 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9.09a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+      </div>
       <div class="card" id="assetList" style="padding:4px 12px;"></div>
     </section>
 
@@ -275,15 +281,10 @@
     <div class="sheet-title" id="assetSheetTitle">新增資產</div>
     <div class="field">
       <label>資產類型</label>
-      <div class="catpick" id="catPick">
-        <button data-cat="stock">股票</button>
-        <button data-cat="fund">基金</button>
-        <button data-cat="cash">現金</button>
-        <button data-cat="forex">外幣</button>
-      </div>
+      <div class="catpick" id="catPick"></div>
     </div>
     <div class="field">
-      <label id="nameLabel">名稱</label>
+      <label>名稱</label>
       <input type="text" id="assetName" placeholder="例如：台積電 / 國泰台幣活存">
     </div>
     <div class="field" id="costField">
@@ -333,66 +334,94 @@
   </div>
 </div>
 
+<!-- ===== Category Manager Modal ===== -->
+<div class="overlay" id="catManagerOverlay">
+  <div class="sheet">
+    <div class="sheet-title">管理投資類別</div>
+    <div id="catManagerList"></div>
+    <div class="sheet-actions">
+      <button class="btn-ghost" id="btnCloseCatManager" style="flex:1;">關閉</button>
+      <button class="btn-primary" id="btnAddCatNew" style="flex:2;">＋ 新增類別</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Category Form Modal ===== -->
+<div class="overlay top" id="catFormOverlay">
+  <div class="sheet">
+    <div class="sheet-title" id="catFormTitle">新增類別</div>
+    <div class="field">
+      <label>類別名稱</label>
+      <input type="text" id="catFormName" placeholder="例如：加密貨幣、房地產">
+    </div>
+    <div class="field">
+      <label>是否追蹤投入成本／損益</label>
+      <div class="catpick" id="catFormCostToggle">
+        <button data-val="1">追蹤成本／損益</button>
+        <button data-val="0">僅記錄現值</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>顏色標示</label>
+      <div id="catFormColors" style="display:flex;gap:9px;flex-wrap:wrap;"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-danger" id="btnDeleteCat" style="display:none;">刪除</button>
+      <button class="btn-primary" id="btnSaveCat">儲存</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
 
-  var CATS = {
-    stock: {label:'股票', color:'var(--c-stock)', hex:'#4F8FF7', hasCost:true},
-    fund:  {label:'基金', color:'var(--c-fund)',  hex:'#9B7EDE', hasCost:true},
-    cash:  {label:'現金', color:'var(--c-cash)',  hex:'#3DDC84', hasCost:false},
-    forex: {label:'外幣', color:'var(--c-forex)', hex:'#D4A62B', hasCost:false}
-  };
-  var CAT_ORDER = ['stock','fund','cash','forex'];
-  var STORE_KEY = 'wealthLedgerData_v1';
+  var PALETTE = ['#4F8FF7','#9B7EDE','#3DDC84','#D4A62B','#F0685F','#5FD0C4','#E0A458','#7FA8D9','#C589D9','#6FCF97','#E39BC1','#8AA6A3'];
+  var DEFAULT_CATEGORIES = [
+    {key:'stock', label:'股票', hex:'#4F8FF7', hasCost:true, builtin:true},
+    {key:'fund',  label:'基金', hex:'#9B7EDE', hasCost:true, builtin:true},
+    {key:'cash',  label:'現金', hex:'#3DDC84', hasCost:false, builtin:true},
+    {key:'forex', label:'外幣', hex:'#D4A62B', hasCost:false, builtin:true}
+  ];
+  var STORE_KEY = 'wealthLedgerData_v2';
 
   var state = loadState();
   var currentView = 'dashboard';
   var currentCatFilter = 'all';
+  var currentTrendFilter = 'all';
   var editingAssetId = null;
-  var editingCat = 'stock';
+  var editingCat = null;
   var detailSnapId = null;
-
-  function buildDemoState(){
-    var rows = [
-      {date:'2026-02-11', fc:2633916, fv:4291630, sc:3281406, sv:3825382, cash:352861, forex:60000},
-      {date:'2026-04-17', fc:2231220, fv:4728084, sc:4131734, sv:4863580, cash:650000, forex:70524},
-      {date:'2026-04-30', fc:2321220, fv:5152432, sc:4097998, sv:4973906, cash:455000, forex:99950},
-      {date:'2026-05-07', fc:2351220, fv:5505643, sc:4064417, sv:5377538, cash:396000, forex:99500}
-    ];
-    var snapshots = rows.map(function(r){
-      var assetsAtSnapshot = [
-        {id:'demo-fund', category:'fund', name:'基金', cost:r.fc, value:r.fv},
-        {id:'demo-stock', category:'stock', name:'股票', cost:r.sc, value:r.sv},
-        {id:'demo-cash', category:'cash', name:'銀行台幣', value:r.cash},
-        {id:'demo-forex', category:'forex', name:'銀行外幣', value:r.forex}
-      ];
-      var totalCost = r.fc + r.sc + r.cash + r.forex;
-      var totalValue = r.fv + r.sv + r.cash + r.forex;
-      return {id:'demo-snap-'+r.date, date:r.date, totalCost:totalCost, totalValue:totalValue, assetsAtSnapshot:assetsAtSnapshot};
-    });
-    var last = rows[rows.length-1];
-    var assets = [
-      {id:'demo-fund', category:'fund', name:'基金', cost:last.fc, value:last.fv},
-      {id:'demo-stock', category:'stock', name:'股票', cost:last.sc, value:last.sv},
-      {id:'demo-cash', category:'cash', name:'銀行台幣', value:last.cash},
-      {id:'demo-forex', category:'forex', name:'銀行外幣', value:last.forex}
-    ];
-    return { assets: assets, snapshots: snapshots };
-  }
+  var editingCatKey = null;
+  var formSelectedHasCost = 1;
+  var formSelectedColor = PALETTE[0];
+  var formOriginWasAssetModal = false;
 
   function loadState(){
     try{
       var raw = localStorage.getItem(STORE_KEY);
-      if(raw){ return JSON.parse(raw); }
+      if(raw){
+        var s = JSON.parse(raw);
+        if(!s.categories || !s.categories.length){ s.categories = DEFAULT_CATEGORIES.map(function(c){return Object.assign({},c);}); }
+        if(!s.assets) s.assets = [];
+        if(!s.snapshots) s.snapshots = [];
+        return s;
+      }
     }catch(e){}
-    // 公開部署版本：首次開啟為空白狀態，資料僅儲存於使用者本機瀏覽器
-    return { assets: [], snapshots: [] };
+    return { categories: DEFAULT_CATEGORIES.map(function(c){return Object.assign({},c);}), assets: [], snapshots: [] };
   }
   function saveState(){
     try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
   }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+  function getCat(key){
+    var c = state.categories.find(function(x){return x.key===key;});
+    return c || {key:key, label:key, hex:'#8792A8', hasCost:false, builtin:false};
+  }
+  function nextPaletteColor(){
+    return PALETTE[state.categories.length % PALETTE.length];
+  }
 
   function fmtMoney(n){
     n = Math.round(n||0);
@@ -410,17 +439,23 @@
     var days=['日','一','二','三','四','五','六'];
     return { d1: iso.slice(2).replace(/-/g,'/'), d2: '週'+days[d.getDay()] };
   }
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
 
   // ---------- computations ----------
   function assetGain(a){
-    if(!CATS[a.category].hasCost) return 0;
+    if(!getCat(a.category).hasCost) return 0;
     return (a.value||0) - (a.cost||0);
   }
   function grandTotals(assets){
     var cost=0, value=0;
     assets.forEach(function(a){
+      var cat = getCat(a.category);
       value += (a.value||0);
-      cost += CATS[a.category].hasCost ? (a.cost||0) : (a.value||0);
+      cost += cat.hasCost ? (a.cost||0) : (a.value||0);
     });
     var gain = value - cost;
     var pct = cost>0 ? (gain/cost*100) : 0;
@@ -428,12 +463,21 @@
   }
   function categoryTotals(assets){
     var out = {};
-    CAT_ORDER.forEach(function(c){ out[c] = {cost:0,value:0}; });
+    state.categories.forEach(function(c){ out[c.key] = {cost:0,value:0}; });
     assets.forEach(function(a){
+      if(!out[a.category]) out[a.category] = {cost:0,value:0};
+      var cat = getCat(a.category);
       out[a.category].value += (a.value||0);
-      out[a.category].cost += CATS[a.category].hasCost ? (a.cost||0) : (a.value||0);
+      out[a.category].cost += cat.hasCost ? (a.cost||0) : (a.value||0);
     });
     return out;
+  }
+  function categorySeriesFromSnapshots(snaps, catKey){
+    return snaps.map(function(s){
+      var sum = 0;
+      (s.assetsAtSnapshot||[]).forEach(function(a){ if(a.category===catKey) sum += (a.value||0); });
+      return sum;
+    });
   }
 
   // ---------- rendering: dashboard ----------
@@ -456,7 +500,8 @@
 
     document.getElementById('sparkline').innerHTML = buildSparkline(snaps);
     document.getElementById('allocCard').innerHTML = buildAllocation(state.assets, t);
-    document.getElementById('trendCard').innerHTML = buildTrendChart(snaps);
+    renderTrendCatTabs();
+    renderTrendCard(snaps);
     document.getElementById('trendCount').textContent = snaps.length ? snaps.length+' 筆快照' : '';
   }
 
@@ -486,54 +531,67 @@
     var circumference = 2*Math.PI*r;
     var offset = 0;
     var segs = '';
-    CAT_ORDER.forEach(function(c){
-      var v = ct[c].value;
+    state.categories.forEach(function(c){
+      var v = ct[c.key] ? ct[c.key].value : 0;
       if(v<=0) return;
       var frac = v/total;
       var len = frac*circumference;
-      segs += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+CATS[c].hex+'" stroke-width="'+sw+'" '+
+      segs += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+c.hex+'" stroke-width="'+sw+'" '+
         'stroke-dasharray="'+len.toFixed(1)+' '+(circumference-len).toFixed(1)+'" '+
         'stroke-dashoffset="'+(-offset).toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
       offset += len;
     });
     var donut = '<svg width="120" height="120" viewBox="0 0 120 120">'+segs+'</svg>';
     var legend = '<div class="legend">';
-    CAT_ORDER.forEach(function(c){
-      var v = ct[c].value;
+    state.categories.forEach(function(c){
+      var v = ct[c.key] ? ct[c.key].value : 0;
       if(v<=0) return;
-      legend += '<div class="legend-row"><span class="legend-dot" style="background:'+CATS[c].hex+'"></span>'+
-        '<span class="legend-name">'+CATS[c].label+'</span>'+
+      legend += '<div class="legend-row"><span class="legend-dot" style="background:'+c.hex+'"></span>'+
+        '<span class="legend-name">'+escapeHtml(c.label)+'</span>'+
         '<span class="legend-val">'+((v/total)*100).toFixed(0)+'% · '+fmtMoney(v)+'</span></div>';
     });
     legend += '</div>';
     return '<div class="donut-wrap">'+donut+legend+'</div>';
   }
 
-  function buildTrendChart(snaps){
+  function renderTrendCatTabs(){
+    var wrap = document.getElementById('trendCatTabs');
+    var chips = [{key:'all', label:'全部'}].concat(state.categories.map(function(c){return {key:c.key, label:c.label};}));
+    wrap.innerHTML = chips.map(function(t){
+      return '<button class="cat-tab'+(currentTrendFilter===t.key?' active':'')+'" data-trendcat="'+t.key+'">'+escapeHtml(t.label)+'</button>';
+    }).join('');
+  }
+  function renderTrendCard(snaps){
+    document.getElementById('trendCard').innerHTML = buildTrendChart(snaps, currentTrendFilter);
+  }
+
+  function buildTrendChart(snaps, catKey){
     if(snaps.length < 2){
       return '<div class="empty"><div class="big">〜</div><p>至少需要 2 筆快照<br>才能繪製淨值趨勢圖</p></div>';
     }
+    var vals = (catKey==='all') ? snaps.map(function(s){return s.totalValue;}) : categorySeriesFromSnapshots(snaps, catKey);
+    var lineColor = (catKey==='all') ? '#D4A62B' : getCat(catKey).hex;
     var w=320, h=140, padL=6, padR=6, padT=14, padB=22;
-    var vals = snaps.map(function(s){return s.totalValue;});
     var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
     if(min===max){ min -= 1; max += 1; }
     var range = max-min;
     var innerW = w-padL-padR, innerH = h-padT-padB;
-    var pts = snaps.map(function(s,i){
-      var x = padL + (i/(snaps.length-1))*innerW;
-      var y = padT + innerH - ((s.totalValue-min)/range)*innerH;
+    var pts = vals.map(function(v,i){
+      var x = padL + (i/(vals.length-1))*innerW;
+      var y = padT + innerH - ((v-min)/range)*innerH;
       return {x:x, y:y};
     });
     var line = pts.map(function(p,i){ return (i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
     var area = line + ' L'+pts[pts.length-1].x.toFixed(1)+','+(padT+innerH)+' L'+pts[0].x.toFixed(1)+','+(padT+innerH)+' Z';
     var firstLabel = snaps[0].date.slice(2), lastLabel = snaps[snaps.length-1].date.slice(2);
+    var gid = 'tg'+Math.round(Math.random()*99999);
     return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="150">'+
-      '<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">'+
-      '<stop offset="0%" stop-color="#D4A62B" stop-opacity="0.35"/>'+
-      '<stop offset="100%" stop-color="#D4A62B" stop-opacity="0"/></linearGradient></defs>'+
-      '<path d="'+area+'" fill="url(#tg)"/>'+
-      '<path d="'+line+'" fill="none" stroke="#D4A62B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'+
-      pts.map(function(p,i){ return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(i===pts.length-1?3.6:2.4)+'" fill="#0A0F1C" stroke="#D4A62B" stroke-width="2"/>'; }).join('')+
+      '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0%" stop-color="'+lineColor+'" stop-opacity="0.35"/>'+
+      '<stop offset="100%" stop-color="'+lineColor+'" stop-opacity="0"/></linearGradient></defs>'+
+      '<path d="'+area+'" fill="url(#'+gid+')"/>'+
+      '<path d="'+line+'" fill="none" stroke="'+lineColor+'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'+
+      pts.map(function(p,i){ return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+(i===pts.length-1?3.6:2.4)+'" fill="#0A0F1C" stroke="'+lineColor+'" stroke-width="2"/>'; }).join('')+
       '<text x="'+padL+'" y="'+(h-4)+'" font-size="10" fill="#57627A" font-family="ui-monospace,monospace">'+firstLabel+'</text>'+
       '<text x="'+(w-padR)+'" y="'+(h-4)+'" font-size="10" fill="#57627A" font-family="ui-monospace,monospace" text-anchor="end">'+lastLabel+'</text>'+
       '</svg>';
@@ -542,9 +600,9 @@
   // ---------- rendering: assets ----------
   function renderCatTabs(){
     var wrap = document.getElementById('catTabs');
-    var tabs = [{key:'all', label:'全部'}].concat(CAT_ORDER.map(function(c){return {key:c, label:CATS[c].label};}));
+    var tabs = [{key:'all', label:'全部'}].concat(state.categories.map(function(c){return {key:c.key, label:c.label};}));
     wrap.innerHTML = tabs.map(function(t){
-      return '<button class="cat-tab'+(currentCatFilter===t.key?' active':'')+'" data-cat="'+t.key+'">'+t.label+'</button>';
+      return '<button class="cat-tab'+(currentCatFilter===t.key?' active':'')+'" data-cat="'+t.key+'">'+escapeHtml(t.label)+'</button>';
     }).join('');
   }
 
@@ -556,25 +614,19 @@
       return;
     }
     container.innerHTML = list.map(function(a){
-      var cat = CATS[a.category];
+      var cat = getCat(a.category);
       var gain = assetGain(a);
       var gainStr = cat.hasCost ? fmtSigned(gain) : '—';
       var gainColor = gain>0?'var(--jade)':gain<0?'var(--coral)':'var(--text-faint)';
       var meta = cat.hasCost ? ('成本 '+fmtMoney(a.cost)) : cat.label;
       return '<div class="asset-row" data-id="'+a.id+'">'+
         '<div class="cat-chip" style="background:'+cat.hex+'"></div>'+
-        '<div class="asset-main"><div class="asset-name">'+escapeHtml(a.name)+'</div><div class="asset-meta">'+meta+'</div></div>'+
+        '<div class="asset-main"><div class="asset-name">'+escapeHtml(a.name)+'</div><div class="asset-meta">'+escapeHtml(meta)+'</div></div>'+
         '<div class="asset-value"><div class="v">'+fmtMoney(a.value)+'</div><div class="g" style="color:'+gainColor+'">'+gainStr+'</div></div>'+
         '<button class="asset-edit" data-edit="'+a.id+'">'+
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'+
         '</button></div>';
     }).join('');
-  }
-
-  function escapeHtml(s){
-    return (s||'').replace(/[&<>"']/g, function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-    });
   }
 
   // ---------- rendering: history ----------
@@ -601,11 +653,13 @@
     if(!s) return;
     detailSnapId = id;
     document.getElementById('snapDetailTitle').textContent = s.date + ' 快照明細';
-    var ct = {};
-    CAT_ORDER.forEach(function(c){ ct[c] = {cost:0,value:0}; });
+    var groups = {};
+    var order = [];
     (s.assetsAtSnapshot||[]).forEach(function(a){
-      ct[a.category].value += a.value;
-      ct[a.category].cost += CATS[a.category].hasCost ? a.cost : a.value;
+      var label = a.categoryLabel || getCat(a.category).label;
+      var hex = a.categoryHex || getCat(a.category).hex;
+      if(!groups[a.category]){ groups[a.category] = {label:label, hex:hex, value:0}; order.push(a.category); }
+      groups[a.category].value += (a.value||0);
     });
     var gain = s.totalValue - s.totalCost;
     var html = '<div style="margin-bottom:14px;">'+
@@ -613,10 +667,11 @@
       '<div style="font-family:var(--mono);font-size:22px;font-weight:600;">'+fmtMoney(s.totalValue)+'</div>'+
       '<div style="font-family:var(--mono);font-size:13px;color:'+(gain>0?'var(--jade)':gain<0?'var(--coral)':'var(--text-faint)')+';margin-top:2px;">'+fmtSigned(gain)+'</div></div>';
     html += '<div style="border-top:1px solid var(--border-soft);padding-top:10px;">';
-    CAT_ORDER.forEach(function(c){
-      if(ct[c].value<=0) return;
-      html += '<div class="legend-row" style="margin-bottom:8px;"><span class="legend-dot" style="background:'+CATS[c].hex+'"></span>'+
-        '<span class="legend-name">'+CATS[c].label+'</span><span class="legend-val">'+fmtMoney(ct[c].value)+'</span></div>';
+    order.forEach(function(key){
+      var g = groups[key];
+      if(g.value<=0) return;
+      html += '<div class="legend-row" style="margin-bottom:8px;"><span class="legend-dot" style="background:'+g.hex+'"></span>'+
+        '<span class="legend-name">'+escapeHtml(g.label)+'</span><span class="legend-val">'+fmtMoney(g.value)+'</span></div>';
     });
     html += '</div>';
     document.getElementById('snapDetailBody').innerHTML = html;
@@ -641,38 +696,44 @@
   }
 
   // ---------- asset modal ----------
+  function renderAssetCatPick(){
+    var wrap = document.getElementById('catPick');
+    wrap.innerHTML = state.categories.map(function(c){
+      return '<button data-cat="'+c.key+'" class="'+(editingCat===c.key?'active':'')+'">'+escapeHtml(c.label)+'</button>';
+    }).join('') + '<button data-addcat="1" class="addnew">＋ 新類別</button>';
+  }
+  function updateCostFieldVisibility(){
+    var cat = getCat(editingCat);
+    document.getElementById('costField').style.display = cat.hasCost ? 'block' : 'none';
+    document.getElementById('valueLabel').textContent = cat.hasCost ? '目前現值 (NT$)' : '目前台幣現值 (NT$)';
+  }
+
   function openAssetModal(assetId){
     editingAssetId = assetId || null;
     var a = assetId ? state.assets.find(function(x){return x.id===assetId;}) : null;
-    editingCat = a ? a.category : (currentCatFilter!=='all' ? currentCatFilter : 'stock');
+    editingCat = a ? a.category : ((currentCatFilter!=='all' && getCat(currentCatFilter)) ? currentCatFilter : (state.categories[0] ? state.categories[0].key : null));
     document.getElementById('assetSheetTitle').textContent = a ? '編輯資產' : '新增資產';
     document.getElementById('assetName').value = a ? a.name : '';
     document.getElementById('assetCost').value = a && a.cost!=null ? a.cost : '';
     document.getElementById('assetValue').value = a ? a.value : '';
     document.getElementById('btnDeleteAsset').style.display = a ? 'block' : 'none';
-    updateCatPickUI();
+    renderAssetCatPick();
     updateCostFieldVisibility();
     document.getElementById('assetOverlay').classList.add('show');
   }
   function closeAssetModal(){ document.getElementById('assetOverlay').classList.remove('show'); }
 
-  function updateCatPickUI(){
-    document.querySelectorAll('#catPick button').forEach(function(b){
-      b.classList.toggle('active', b.dataset.cat===editingCat);
-    });
-  }
-  function updateCostFieldVisibility(){
-    var hasCost = CATS[editingCat].hasCost;
-    document.getElementById('costField').style.display = hasCost ? 'block' : 'none';
-    document.getElementById('nameLabel').textContent = editingCat==='cash' ? '帳戶名稱' : editingCat==='forex' ? '幣別／帳戶名稱' : '名稱';
-    document.getElementById('valueLabel').textContent = hasCost ? '目前現值 (NT$)' : '目前台幣現值 (NT$)';
-  }
-
   document.getElementById('catPick').addEventListener('click', function(e){
+    var addBtn = e.target.closest('[data-addcat]');
+    if(addBtn){
+      formOriginWasAssetModal = true;
+      openCategoryForm(null);
+      return;
+    }
     var btn = e.target.closest('button[data-cat]');
     if(!btn) return;
     editingCat = btn.dataset.cat;
-    updateCatPickUI();
+    renderAssetCatPick();
     updateCostFieldVisibility();
   });
 
@@ -681,14 +742,15 @@
     var cost = parseFloat(document.getElementById('assetCost').value) || 0;
     var value = parseFloat(document.getElementById('assetValue').value) || 0;
     if(!name){ document.getElementById('assetName').focus(); return; }
+    if(!editingCat){ alert('請先選擇或新增一個資產類型'); return; }
+    var hasCost = getCat(editingCat).hasCost;
     if(editingAssetId){
       var a = state.assets.find(function(x){return x.id===editingAssetId;});
       a.category = editingCat; a.name = name; a.value = value;
-      if(CATS[editingCat].hasCost) a.cost = cost;
-      else delete a.cost;
+      if(hasCost) a.cost = cost; else delete a.cost;
     } else {
       var obj = { id: uid(), category: editingCat, name: name, value: value };
-      if(CATS[editingCat].hasCost) obj.cost = cost;
+      if(hasCost) obj.cost = cost;
       state.assets.push(obj);
     }
     saveState();
@@ -736,14 +798,21 @@
     var date = document.getElementById('snapDate').value;
     if(!date){ return; }
     var t = grandTotals(state.assets);
+    var assetsAtSnapshot = state.assets.map(function(a){
+      var cat = getCat(a.category);
+      var copy = Object.assign({}, a);
+      copy.categoryLabel = cat.label;
+      copy.categoryHex = cat.hex;
+      copy.categoryHasCost = cat.hasCost;
+      return copy;
+    });
     var snap = {
       id: uid(),
       date: date,
       totalCost: t.cost,
       totalValue: t.value,
-      assetsAtSnapshot: JSON.parse(JSON.stringify(state.assets))
+      assetsAtSnapshot: assetsAtSnapshot
     };
-    // replace existing snapshot on same date if present
     state.snapshots = state.snapshots.filter(function(s){return s.date!==date;});
     state.snapshots.push(snap);
     saveState();
@@ -788,6 +857,142 @@
     renderAssetList();
   });
 
+  document.getElementById('trendCatTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.cat-tab');
+    if(!btn) return;
+    currentTrendFilter = btn.dataset.trendcat;
+    var snaps = state.snapshots.slice().sort(function(a,b){return a.date<b.date?-1:1;});
+    renderTrendCatTabs();
+    renderTrendCard(snaps);
+  });
+
+  // ---------- category manager ----------
+  document.getElementById('btnManageCats').addEventListener('click', function(){
+    renderCatManagerList();
+    document.getElementById('catManagerOverlay').classList.add('show');
+  });
+  document.getElementById('btnCloseCatManager').addEventListener('click', function(){
+    document.getElementById('catManagerOverlay').classList.remove('show');
+  });
+  document.getElementById('catManagerOverlay').addEventListener('click', function(e){
+    if(e.target === this) this.classList.remove('show');
+  });
+  document.getElementById('btnAddCatNew').addEventListener('click', function(){
+    formOriginWasAssetModal = false;
+    openCategoryForm(null);
+  });
+
+  function renderCatManagerList(){
+    var wrap = document.getElementById('catManagerList');
+    if(!state.categories.length){
+      wrap.innerHTML = '<div class="empty"><p>尚無任何類別</p></div>';
+      return;
+    }
+    wrap.innerHTML = state.categories.map(function(c){
+      var inUse = state.assets.some(function(a){return a.category===c.key;});
+      return '<div class="asset-row" data-catkey="'+c.key+'">'+
+        '<div class="cat-chip" style="background:'+c.hex+'"></div>'+
+        '<div class="asset-main"><div class="asset-name">'+escapeHtml(c.label)+'</div>'+
+        '<div class="asset-meta">'+(c.hasCost?'追蹤成本／損益':'僅記錄現值')+(inUse?'':' · 尚無資產使用')+'</div></div>'+
+        '<button class="asset-edit" data-editcat="'+c.key+'">'+
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'+
+        '</button></div>';
+    }).join('');
+  }
+  document.getElementById('catManagerList').addEventListener('click', function(e){
+    var editBtn = e.target.closest('[data-editcat]');
+    if(!editBtn) return;
+    formOriginWasAssetModal = false;
+    openCategoryForm(editBtn.dataset.editcat);
+  });
+
+  // ---------- category form ----------
+  function renderCostToggleUI(){
+    document.querySelectorAll('#catFormCostToggle button').forEach(function(b){
+      b.classList.toggle('active', parseInt(b.dataset.val,10)===formSelectedHasCost);
+    });
+  }
+  function renderColorSwatches(){
+    var wrap = document.getElementById('catFormColors');
+    wrap.innerHTML = PALETTE.map(function(hex){
+      return '<div class="swatch'+(formSelectedColor===hex?' active':'')+'" data-hex="'+hex+'" style="background:'+hex+'"></div>';
+    }).join('');
+  }
+  document.getElementById('catFormCostToggle').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-val]');
+    if(!btn) return;
+    formSelectedHasCost = parseInt(btn.dataset.val,10);
+    renderCostToggleUI();
+  });
+  document.getElementById('catFormColors').addEventListener('click', function(e){
+    var sw = e.target.closest('.swatch');
+    if(!sw) return;
+    formSelectedColor = sw.dataset.hex;
+    renderColorSwatches();
+  });
+
+  function openCategoryForm(key){
+    editingCatKey = key || null;
+    var c = key ? getCat(key) : null;
+    document.getElementById('catFormTitle').textContent = c ? '編輯類別' : '新增類別';
+    document.getElementById('catFormName').value = c ? c.label : '';
+    formSelectedHasCost = c ? (c.hasCost?1:0) : 1;
+    formSelectedColor = c ? c.hex : nextPaletteColor();
+    renderCostToggleUI();
+    renderColorSwatches();
+    document.getElementById('btnDeleteCat').style.display = c ? 'block' : 'none';
+    document.getElementById('catManagerOverlay').classList.remove('show');
+    document.getElementById('catFormOverlay').classList.add('show');
+  }
+  function closeCategoryForm(){
+    document.getElementById('catFormOverlay').classList.remove('show');
+  }
+
+  document.getElementById('catFormOverlay').addEventListener('click', function(e){
+    if(e.target === this) closeCategoryForm();
+  });
+
+  document.getElementById('btnSaveCat').addEventListener('click', function(){
+    var name = document.getElementById('catFormName').value.trim();
+    if(!name){ document.getElementById('catFormName').focus(); return; }
+    var savedKey;
+    if(editingCatKey){
+      var c = getCat(editingCatKey);
+      c.label = name; c.hasCost = !!formSelectedHasCost; c.hex = formSelectedColor;
+      savedKey = editingCatKey;
+    } else {
+      savedKey = 'cat_'+uid();
+      state.categories.push({key:savedKey, label:name, hasCost:!!formSelectedHasCost, hex:formSelectedColor, builtin:false});
+    }
+    saveState();
+    closeCategoryForm();
+    if(formOriginWasAssetModal){
+      editingCat = savedKey;
+      renderAssetCatPick();
+      updateCostFieldVisibility();
+    } else {
+      renderCatManagerList();
+      document.getElementById('catManagerOverlay').classList.add('show');
+    }
+    if(currentView==='assets'){ renderCatTabs(); renderAssetList(); }
+  });
+
+  document.getElementById('btnDeleteCat').addEventListener('click', function(){
+    if(!editingCatKey) return;
+    var inUse = state.assets.some(function(a){return a.category===editingCatKey;});
+    if(inUse){
+      alert('這個類別目前還有資產在使用，請先將這些資產改為其他類別或刪除，才能刪除此類別。');
+      return;
+    }
+    if(!confirm('確定要刪除這個類別嗎？（過去快照中的歷史紀錄仍會保留）')) return;
+    state.categories = state.categories.filter(function(c){return c.key!==editingCatKey;});
+    saveState();
+    closeCategoryForm();
+    renderCatManagerList();
+    document.getElementById('catManagerOverlay').classList.add('show');
+    if(currentView==='assets'){ renderCatTabs(); renderAssetList(); }
+  });
+
   // ---------- nav & fab ----------
   document.querySelectorAll('.navbtn').forEach(function(b){
     b.addEventListener('click', function(){ switchView(b.dataset.view); });
@@ -820,13 +1025,6 @@
       });
     }catch(e){}
   }
-
-  document.getElementById('btnResetDemo').addEventListener('click', function(){
-    if(!confirm('確定要清除示範資料嗎？將會清空所有資產與快照，改為空白狀態，讓您輸入自己的真實資料。')) return;
-    state = { assets: [], snapshots: [] };
-    saveState();
-    renderAll();
-  });
 
   // ---------- init ----------
   generateIcon();
