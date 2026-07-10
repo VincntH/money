@@ -384,6 +384,7 @@
     {key:'forex', label:'外幣', hex:'#D4A62B', hasCost:false, builtin:true}
   ];
   var STORE_KEY = 'wealthLedgerData_v2';
+  var OLD_STORE_KEY = 'wealthLedgerData_v1';
 
   var state = loadState();
   var currentView = 'dashboard';
@@ -406,6 +407,26 @@
         if(!s.assets) s.assets = [];
         if(!s.snapshots) s.snapshots = [];
         return s;
+      }
+      // 找不到新版資料時，檢查是否有舊版資料可以搬家
+      var oldRaw = localStorage.getItem(OLD_STORE_KEY);
+      if(oldRaw){
+        var old = JSON.parse(oldRaw);
+        var migrated = {
+          categories: DEFAULT_CATEGORIES.map(function(c){return Object.assign({},c);}),
+          assets: old.assets || [],
+          snapshots: (old.snapshots || []).map(function(snap){
+            var assetsAtSnapshot = (snap.assetsAtSnapshot || []).map(function(a){
+              var defCat = DEFAULT_CATEGORIES.find(function(c){return c.key===a.category;});
+              var copy = Object.assign({}, a);
+              if(defCat){ copy.categoryLabel = defCat.label; copy.categoryHex = defCat.hex; copy.categoryHasCost = defCat.hasCost; }
+              return copy;
+            });
+            return Object.assign({}, snap, {assetsAtSnapshot: assetsAtSnapshot});
+          })
+        };
+        try{ localStorage.setItem(STORE_KEY, JSON.stringify(migrated)); }catch(e){}
+        return migrated;
       }
     }catch(e){}
     return { categories: DEFAULT_CATEGORIES.map(function(c){return Object.assign({},c);}), assets: [], snapshots: [] };
